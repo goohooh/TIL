@@ -52,7 +52,9 @@ React는 새로운 요소에 매치되는 컴포넌트 인스턴스에 내재된
 
 `componentWillReceiveProps()`와 `componentWillUpdate()`를 인스턴스 기저에서 호출한다.
 
-다음으로 `render()`메서드가 호출되고 `diff algorithm`이 앞선 결과를 로운 결과를 recurses 한다?
+다음으로 `render()`메서드가 호출되고 `diff algorithm`이 이전 결과와 새로운 결과를 토대로 
+
+반복된다.
 
 ## Recursing on Children
 
