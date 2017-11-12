@@ -180,7 +180,8 @@ const DeleteAccount = () => ({
         color: 'blue',
         children: 'Cancel'
       }
-   }]
+    }]
+  }
 });
 ```
 
