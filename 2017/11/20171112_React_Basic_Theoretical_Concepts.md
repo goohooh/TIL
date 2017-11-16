@@ -20,7 +20,7 @@ function NameBox(name){
 
 ## Abstraction
 
-하나의 함수를 통해 복잡한 UI를 감당할 수 없다.
+하나의 함수로 복잡한 UI를 감당할 수 없다.
 
 UI들을 각자의 구현 디테일을 놓치지 얂으면서 재활용 가능한 조각으로 추상화 할 수 있는 것이 중요하다.
 
@@ -32,6 +32,7 @@ function FancyUserBox(user) {
 		borderStyle: '1px solid blue',
 		childContent: [
 			'Name: ',
+			// `NameBox`의 렌더 결과물 내장
 			NameBox(`${user. firstName} ${user.lastName}`)
 		]
 	};
@@ -58,6 +59,8 @@ function FancyUserBox(user) {
 
 ```javascript
 function FancyBox(children) {
+	// `FancyBox`는 안에 뭐가 들었는지 알 필요 없음
+	// 대신 chilren을 인자로 받음
 	return {
 		borderStyle: '1px solid blue',
 		children: children
@@ -65,10 +68,20 @@ function FancyBox(children) {
 }
 
 function UserBox(user){
+	// 이제 다른 영역의 UI 안에서 다른 children을 `FancyBox`에 넣어줄 수 있다.
+	// 예를 들어, `UserBox`는 `FancyBox`안에 `NameBox`와 함께 있다.
 	return FancyBox([
 		'Name: ',
 		NameBox(`${user.firstName} ${user.lastName}`)
 	]);
+}
+
+function MessageBox(message) {
+  // 하지만 `MessageBox`는 메시지와 함께 있는 `FancyBox`다.
+  return FancyBox([
+    'You received a new message: ',
+    message
+  ]);
 }
 ```
 
@@ -139,6 +152,8 @@ function memoize(fn) {
 	}
 }
 
+// NameBox와 동일한 API를 가지지만 마지막 `MemoizedNameBox`가 마지막으로
+// 호출됐을 당시의 단일 인자와 비교해 변경되지 않았다면 그 결과값을 캐시한다.
 var MeomizedNameBox = memoize(NameBox);
 
 function NameAndAgeBox(user, currentTime) {
@@ -149,6 +164,11 @@ function NameAndAgeBox(user, currentTime) {
 		currentTime - user.dateOfBirth
 	]);
 }
+
+// `NameAndAgeBox`를 두번 호출하지만, `NameBox`는 한번호출된다.
+const sebastian = { firstName: 'Sebastian', lastName: 'Markbage' };
+NameAndAgeBox(sebastian, Date.now());
+NameAndAgeBox(sebastian, Date.now());
 ```
 
 ## Lists
@@ -190,13 +210,28 @@ _한번에 하나의 값만 기억하도록 했던 메모이제이션이 망가�
 
 ```javascript
 function FancyUserList(users){
-	return FancyBox(
-		UserList.bind(null, users)
-	);
+	// `UserList`는 3가지 인자를 받는다 : `users`, `likesPerUser`, `updateUserLikes`
+
+	// `FancyUserList`가 사실은 `UserList`에게 
+	// `likesPerUser`와 `updateUserLikes`도 필요하단 것을 몰랐으면 한다.
+	// 그래서 `FancyUserList`를 통해 이 state를 기록해두어 인자를 알리지 않도록 한다.
+
+	// 현재로선 첫번째 인자만 제공하는 식으로 속일 수 있다:
+	const children = UserList.bind(null, users);
+
+	// 앞선 예시와 다르게, `children`은 부분적으로 적용된 함수라서
+	// 아직 실제 children을 리턴하기 위해`likesPerUser`와 `updateUserLikes` 필요하
+
+	// 하지만 `FancyBox`는 children을 잘 들여다보지 않고 그저 결과물로 이용할 뿐이다.
+	// 그러므로 이후에 어떠한 외부 시스템으로 빠진 인자들을 주입할 것이다.
+	return FancyBox(children);
 }
 
+// 렌더 결과물은 state가 주입되지 않아 온전히 알기 어렵다.
 const box = FancyUserList(data.users);
+// `box.children()`은 함수다. 이제서야 state를 주입한다.
 const resolvedChildren = box.children(likesPerUser, updateUserLikes);
+// 최종 렌더링 결과물을 갖게 됐다.
 const resolveBox = {
 	...box,
 	children: resolvedChildren
@@ -210,20 +245,32 @@ const resolveBox = {
 상태를 추출하고 전달하는 로직을 수없이 재사용한 저수준 함수로 옮길 수 있다.
 
 ```javascript
+// `FancyBoxWithState`은 아직 resolved 되지 않은 `children`을 받는다.
+// 각 child는 `continuation`을 포함한다. 이것은 child의 state와 이를 업데이트할 함수를 받고
+// child의 아웃풋을 리턴할 것이다.
+// child들은 또한 맵에 그들의 state를 추적할 수 있도록 유니크한 `key`를 포함하고있다.
 function FancyBoxWithState(
 	children,
 	stateMap,
 	updateState
 ) {
-	return FancyBox(
-		children.map(child => child.continuation(
-			stateMap.get(child.key),
-			updateState
-		))
+	// 이제 `stateMap`을 가지며,
+	// children으로 부터 제공된 모든 continuation에 그것을 주입하여
+	// resolved된 결과물을 얻는다.
+	const resolvedChildren = children.map(child => child.continuation(
+	 stateMap.get(child.key),
+	 updateState
+	));
+
+	// 렌더된 결과물을 `FancyBox`에게 넘긴다.
+	return FancyBox(resolvedChildren);
 	);
 }
 
 function UserList(users) {
+	// `UserList`는 state가 나중에 주입받을 것이라 예상되는 
+	// children 리스트를 리턴한다. 아직 그들의 state는 모른채
+	// 부분 적용된 함수("continuations")를 리턴한다.
 	return users.map(user => {
 		continuation: FancyNameBox.bind(null, user),
 		key: user.id
