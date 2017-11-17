@@ -297,7 +297,7 @@ const output = continuation(likePerUser, updateUserLikes);
 // 이들은 각 `children`의 `continuation`에 매핑되어 들어갈 것이다.
 
 /*
- * 주 : 커링 기법을 통해 위 구현의 상세를 작성할 수 있다.
+ * 주 : 커링 기법을 알아 볼것
  */
 ```
 
