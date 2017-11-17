@@ -220,7 +220,7 @@ function FancyUserList(users){
 	const children = UserList.bind(null, users);
 
 	// 앞선 예시와 다르게, `children`은 부분적으로 적용된 함수라서
-	// 아직 실제 children을 리턴하기 위해`likesPerUser`와 `updateUserLikes` 필요하
+	// 아직 실제 children을 리턴하기 위해`likesPerUser`와 `updateUserLikes` 필요하다.
 
 	// 하지만 `FancyBox`는 children을 잘 들여다보지 않고 그저 결과물로 이용할 뿐이다.
 	// 그러므로 이후에 어떠한 외부 시스템으로 빠진 인자들을 주입할 것이다.
@@ -268,7 +268,7 @@ function FancyBoxWithState(
 }
 
 function UserList(users) {
-	// `UserList`는 state가 나중에 주입받을 것이라 예상되는 
+	// `UserList`는 state가 나중에 주입받을 것이라 예상하는 
 	// children 리스트를 리턴한다. 아직 그들의 state는 모른채
 	// 부분 적용된 함수("continuations")를 리턴한다.
 	return users.map(user => {
@@ -278,20 +278,90 @@ function UserList(users) {
 }
 
 function FancyUserList(users) {
-	return FancyBoxWithState.bind(null, UserList(users));
+	// `FancyUserList`는 state를 나중에 주입받으리라 예상하는
+	// `continuation`를 리턴한다. 
+	// 이 state는 Stateful한 children으로 resolved 하기 위해 필요한
+	// `FancyBoxWithState`에 전달 될 것이다.
+	const continuation =FancyBoxWithState.bind(null, UserList(users));
+	return continuation;
 }
 
+// `FancyUserList`의 렌더링 출력뭉은 아직 그릴 준비가 안됐다.
+// 아직 state를 주입 직전의 연장상태다.
 const continuation = FancyUserList(data.users);
-/*
- * continuation = FancyBoxWithState.bind(null, UserList(data.users));
- * 		↓
- * continuation = FancyBoxWithState.bind(null, [{continuation: FancyNameBox.bind(null, user), key: user.id}, ... ])
- */
 
-continuation(likesPerUser, updateUserLikes);
+// 이제 state를 주입했다.
+const output = continuation(likePerUser, updateUserLikes);
+
+// `FancyUserList`는 state를 `FancyBoxWithState`에게 전송하려 하고,
+// 이들은 각 `children`의 `continuation`에 매핑되어 들어갈 것이다.
+
 /*
- * continuation(likesPerUser, updateUserLikes)
- * 		↓
- * GG.......
+ * 주 : 커링 기법을 통해 위 구현의 상세를 작성할 수 있다.
  */
 ```
+
+## MemoizationMap
+
+메모이제이션 목록에서 다양한 항목을 메모이제션하기가 더욱 어려워졌다.
+
+이제 복잡하지만 메모리 사용 빈도가 적절하게 균형잡힌 캐싱 알고리즘을 찾아내야한다.
+
+다행히, UI는 대체로 같은 위치에서 안정적인 경향이있다. 
+
+트리 안에서 같은 포지션은 매번 같은 값을 같는다. 
+
+이 트리는 메모이제이션 전략에 아주 탁월하다.
+
+state때문에 사용한 똑같은 트릭으로 컴포저블 함수를 통해 메모이제이션 캐시를 넘긴다.
+
+```javascript
+// 이전 메모이제이션 예시를 떠올리면, 
+// `memoize`내부 지역변수로써 캐시 인자와 캐시 결과를 가지고 있었다.
+// 하지만 목록에서는 유용하지 않은 방법이다.
+// 목록에선 함수가 수없이 다른 인자와 함께 호출되기 때문이다.
+
+// `memoize`로 부터 리턴된 함수는 `memoizationCache`를 허용한다.
+// `memoizationCache`는 인자로서 컴포넌트를 포함한
+// 목록이 각 항목별로 "local" 캐시를 제공할 수 있기를 바란다. 
+function memoize(fn) {
+	return function(arg, memoizationCache) {
+		if(memoizationCache.arg === arg) {
+			return memoizationCache.result;
+		}
+		const result = fn(arg);
+		memoizationCache.arg = arg;
+		memoizationCache.result = result;
+		return result;
+	}
+}
+
+function FancyBoxWithState(
+	children,
+	stateMap,
+	updateState,
+	memoizationCacheMap
+) {
+	return FancyBox(
+		children.map(child => child.continuation(
+			stateMap.get(child.key),
+			updateState,
+			// UI가 바뀌는건 대게 화면의 일부인 경우가 많다.
+			// 그말인 즉슨 대부분의 같은 키들을 가진 children들이 똑같이 출력된다는 것이다.
+			// 각 child에게 자신의 메모이제이션 맵을 주게 되고
+			// 일반적인 경우 아웃풋은 저장된다.
+			memoizationCacheMap.get(child.key)
+		));
+	);
+}
+```
+
+## 대수 효과
+
+몇 가지 수준의 추상화를 통해 필요할 수있는 모든 작은 값을 전달하는 것은 PITA의 일종 인 것으로 밝혀졌다.
+
+관련없는 두 추상화 사이에 지름길을 두는 것은 때떄로 유익하다. 리액트에선 이걸 `context`라 부른다.
+
+가끔 데이터 의존성이 추상화 트리를 깔끔하게 따르는 것은 아니다.
+
+에를 들어  
