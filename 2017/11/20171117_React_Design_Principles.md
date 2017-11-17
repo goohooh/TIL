@@ -26,7 +26,7 @@ state or lifecycle hook을 사용함에 나쁜점은 없다.
 
 오히려 그것들은 리액트를 강력하게 만들어주는 부분. 인정? 어 인정
 
-우린 이후에 좀 더 함수형 패턴을 추가할 수도 있겠지만,
+우린 이후에 좀 더 [함수형 패턴](https://github.com/reactjs/react-future/tree/master/07%20-%20Returning%20State)을 추가할 수도 있겠지만,
 
 local state and lifecycle hook은 여전히 그 모델의 일부분일 것이다.
 
@@ -40,13 +40,13 @@ local state and lifecycle hook은 여전히 그 모델의 일부분일 것이다
 
 여기엔 렌더링, 생명주기, 상태도 포함된다.
 
-`Relay`같은 외부 라이브러리는 데이터 의존성을 명세하는 컴포넌트처럼 다른 책무를 가진 컴포넌트를 증대시킨다.
+[`Relay`](http://facebook.github.io/relay/)같은 외부 라이브러리는 데이터 의존성을 명세하는 컴포넌트처럼 다른 책무를 가진 컴포넌트를 증대시킨다.
 
 이런 아이디어들은 어떤 형태로 리액트에 다시 들어갈 수도 있다.
 
 ## Common Abstraction
 
-보통 우리는 사용자 단에서 구현할 수 있는 기능을 추가하지 않았다.
+보통 우리는 사용자 단에서 구현할 수 있는 [기능추가를 주저](https://www.youtube.com/watch?v=4anAwXYqLG8)한다.
 
 우린 당신의 코드가 쓸떼없는 라이브러리 코드로 차오르느걸 원치 않는다.
 
@@ -76,7 +76,7 @@ local state and lifecycle hook은 여전히 그 모델의 일부분일 것이다
 
 우리는 항상 커뮤니티와 개선 제안을 논의 한다. 
 
-리액트 이슈 트래커에서 "big picture"라는 라벨로 이러한 논의를 찾아 볼 수 있다.
+리액트 이슈 트래커에서 ["big picture"](https://github.com/facebook/react/issues?q=is:open+is:issue+label:%22big+picture%22)라는 라벨로 이러한 논의를 찾아 볼 수 있다.
 
 
 ## Escape Hatches
@@ -91,15 +91,15 @@ local state and lifecycle hook은 여전히 그 모델의 일부분일 것이다
 
 혹시 우리가 우리가 우리가 원치않는 패턴을 deprecate하려 한다면
 
-그전에 존재하는 모든 실제 사례들을 고려한 대안을 커뮤니티에 교육해야할 책임이 있다.
+그전에 존재하는 모든 실제 사례들을 고려한 [대안을 커뮤니티에 교육](https://reactjs.org/blog/2016/07/13/mixins-considered-harmful.html)해야할 책임이 있다.
 
 앱을 만들기 유용한 몇몇 패턴이 선언적인 방식으로 표현하기 힘들다면
 
-우리는 그것을 위한 필수적인 API를 제공할 것이다.
+우리는 그것을 위한 [필수적인 API](https://reactjs.org/docs/refs-and-the-dom.html)를 제공할 것이다.
 
 많은 앱에서 필수적인 무언가를 발견했지만 이를 위한 API를 알아낼 수 없다면
 
-나중에 제거할수 있는 임시 API를 제공하고 향후 개선을 위한 문을 열어둘것이다.
+나중에 제거할수 있는 [임시 API를 제공](https://reactjs.org/docs/context.html)하고 향후 개선을 위한 문을 열어둘것이다.
 
 ## Stability
 
@@ -159,11 +159,11 @@ deprecation이 개선과 커뮤니티의 많은 사람들이 가치있다고 생
 
 새로운 기능을 위한 길을 깔끔하게 만든다.
 
-예를들어 리액트 15.2.0에서 `unknown DOM props warning`을 추가했었다.
+예를들어 리액트 15.2.0에서 [`unknown DOM props warning`](https://reactjs.org/warnings/unknown-prop.html)을 추가했었다.
 
 많은 프로젝트들이 이에 영향을 받았다. 하지만 이 경고를 고치는 것은 중요했고,
 
-그렇게 리액트에 `custom attributes`에 대한 지원을 소개할 수 있었다.
+그렇게 리액트에 [`custom attributes`](https://github.com/facebook/react/issues/140)에 대한 지원을 소개할 수 있었다.
 
 우리가 추가한 모든 deprecation 뒤에 이러한 이유가 있었다.
 
@@ -189,7 +189,7 @@ deprecation warning을 추가할 때, 남은 현재 메이저 버전에서 이�
 
 페이스북 웹사이트는 XHP라 부르는 서버사이드 컴포넌트 시스템, 리액트 이전의 내부 UI 라이븝러리들 그리고 리액트를 혼용하고있다.
 
-어떤 프로덕트 팀이라도 리액트로 코드를 엎는 대신 작은 기능을 리액트로 시작할 수 있는게  중요하다.
+어떤 프로덕트 팀이라도 리액트로 코드를 엎는 대신 [작은 기능을 리액트로 시작](https://www.youtube.com/watch?v=BF58ZJ1ZQxY)할 수 있는게  중요하다.
 
 이는 리액트가 가변적인 모델로 작업하기위한 탈출구를 제공하고 다른 UI라이브러리와 함께 잘 작동하려하는 이유다.
 
@@ -220,7 +220,7 @@ deprecation warning을 추가할 때, 남은 현재 메이저 버전에서 이�
 
 한번의 틱동안 전체 업데이트된 트리의 렌더 함수를 호출한다.
 
-하지만 앞으로 프레임이 저하되지 않도록 일부 업데이트가 지연될수 있다.
+하지만 앞으로 [프레임이 저하되지 않도록 일부 업데이트가 지연](https://github.com/facebook/react/issues/6170)될수 있다.
 
 ---
 
@@ -252,7 +252,7 @@ deprecation warning을 추가할 때, 남은 현재 메이저 버전에서 이�
 
 개념적으로 우리는 이걸 "스케쥴링 업데이트"로 생각한다.
 
-Functional Reactive Programming의 일부 변형에서 일반적인 "push" 기반 패러다임을 사용하여
+[Functional Reactive Programming](https://en.wikipedia.org/wiki/Functional_reactive_programming)의 일부 변형에서 일반적인 "push" 기반 패러다임을 사용하여
 
 유저가 직접 뷰를 작성하게 되면 스케쥴링 제어가 어려워진다.
 
