@@ -1,6 +1,6 @@
 # React Components, Elements, and Instances
 
-> _Reference_ : [Dan Abramov](https://reactjs.org/blog/2015/12/18/react-components-elements-and-instances.html)
+> _원문 : [Dan Abramov](https://reactjs.org/blog/2015/12/18/react-components-elements-and-instances.html)_
 
 ## Managing the Instances
 

@@ -1,6 +1,6 @@
 # Design Principles
 
-> _Reference : [React Blog](https://reactjs.org/docs/design-principles.html)_
+> _원문 : [React Blog](https://reactjs.org/docs/design-principles.html)_
 
 > 이 문서를 작성하며 리액트가 무얼 하고, 하지 않을지를 어떻게 결정하는지
 >
