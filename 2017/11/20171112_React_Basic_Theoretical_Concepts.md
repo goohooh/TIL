@@ -364,4 +364,37 @@ function FancyBoxWithState(
 
 가끔 데이터 의존성이 추상화 트리를 깔끔하게 따르는 것은 아니다.
 
-에를 들어  
+에를 들어 당신에게 필요한 레이아웃 알고리즘이 완전히 children의 포지션을 채우기 전에 그들의 사이즈 알아야할 때이다.
+
+아래 예제는 조금 "벗어나" 있다. ECMA스크립트에 제안된 대수효과를 사용할 것이다.
+
+함수형 프로그래밍에 익숙하다면, 그들은 모나드에 의해 부과 된 중간 예식을 피하고 있다. (_뜻을 알 수 없음, 구글 번역_)
+
+```javascript
+function ThemeBorderColorRequest() { }
+
+function FancyBox(children) {
+	// "throw" 처럼 콜 스택에 전파됨
+	const color = raise new ThemeBorderColorRequest();
+	return {
+		borderWidth: '1px',
+		borderColor: color,
+		children: children
+	};
+}
+
+function BlueTheme(children) {
+	return try {
+		children();
+	} catch effect ThemeBorderColorRequest -> [, continuation] {
+		// "throw"와 달리 자식 함수를 재실행하고 어떤 데이터를 넘길 수 있다
+		continuation('blue');
+	}
+}
+
+function App(data) {
+	return BlueTheme(
+		FancyUserList.bind(null, data.users)
+	);
+}
+```
