@@ -1,4 +1,4 @@
-# React - Basic Theoretical Concepts
+
 
 > _원문 : [React JS Github](https://github.com/reactjs/react-basic)_
 
