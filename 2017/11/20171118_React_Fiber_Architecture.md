@@ -1,5 +1,7 @@
 # React Fiber Architecture
 
+> _원문 : [React Fiber Architecture](https://github.com/acdlite/react-fiber-architecture)_
+
 ### 사전 지식
 
 아래 글을 읽어보길 **강력하게 권장**한다.
