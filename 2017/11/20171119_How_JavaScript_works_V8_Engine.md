@@ -1,5 +1,7 @@
 # How JavaScript works: inside the V8 engine + 5 tips on how to write optimized code
 
+> _원문 : [How JavaScript works - 2](https://blog.sessionstack.com/how-javascript-works-inside-the-v8-engine-5-tips-on-how-to-write-optimized-code-ac089e62b12e)_
+
 ## Overview
 
 **자바스크립트 엔진**은 자바스크립트 코드를 실행하는 프로그램 혹은 인터프리터라 할 수 있다. JS엔진은 일반적인 인터프리터 혹은 일부 형식에서 자바스크립트를 바이트코드로 컴파일하는 just-in-time 컴파일러로 구현할 수 있다.
