@@ -1,4 +1,4 @@
-k# How JavaScript works: memory management + how to handle 4 common memory leaks
+# How JavaScript works: memory management + how to handle 4 common memory leaks
 
 > _원문 : [How Javascript works - 3](https://blog.sessionstack.com/how-javascript-works-memory-management-how-to-handle-4-common-memory-leaks-3f28b94cfbec)_
 
