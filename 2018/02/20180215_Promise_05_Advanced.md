@@ -325,3 +325,265 @@ function getURL(URL){
 - 처리가 끝났을 땐 프로미스를 이용해 결과를 취득할 수 있도록 구조화됨
 
 ### 5.5 Promise.race를 사용한 타임아웃과 XHR 취소
+
+#### 5.5.1 타임아웃 구현
+
+```javascript
+// 일정시간이 지난 후 resolve 호출
+function delayPromise(ms){
+    return new Promise(resolve => {
+        setTimeout(resolve, ms);
+    });
+}
+
+/*
+ * 일반 setTimeout과 비교
+ */
+setTimeout(() => {
+    alert('Elapsed 100ms');
+}, 100);
+
+delayPromise(100).then(() => {
+    alert('Elapsed 100ms');
+});
+```
+
+##### `Promise.race()`를 사용한 타임아웃 구현
+
+```javascript
+function timeoutPromise(promise, ms){
+    let timeout = delayPromise(ms).then(() => {
+        throw new Error(`Operation timed out after ${ms} ms`)
+    });
+
+    // 가장 먼저 완료된 프로미스 객체 반환
+    return Promise.race([promise, timeout]);
+}
+```
+
+다음과 같이 사용할 수 있다.
+
+```javascript
+let taskPromise = new Promise((resolve) => {
+    // do something...
+
+    const delay = Math.ramdom() * 2000;
+    setTimeout(() => {
+        resolve(delay + 'ms');
+    }, delay);
+});
+
+timeoutPromise(taskPromise, 1000).then(value => {
+    console.log(`taskPromise가 시간 내 완료 : ${value}`);
+}).catch(error => {
+    console.error('Time out', error.message);
+});
+```
+
+타임아웃 시 에러를 출력하지만 이는 일반적 오류와 타임아웃을 구별하지 못한다. 따라서 두 오류를 구벼할 수 있도록 `Error`객체를 상속하여 `TimeoutError`를 정의한다.
+
+> ES5에선 Error객체를 온전히 상속받지 못한다.(스택 트레이스)
+> 
+> ES6부터 class를 이용해 쉽게 상속할 수 있다.
+
+##### error instanceof
+
+```javascript
+// 상속 구현(Speaking Javascript/Chapter 28. Subclassing Built-ins)
+function copyOwnFrom(target, source){
+    Object.getOwnPropertyNames(source).forEach((propName) => {
+        Object.defineProperty(
+            target, 
+            propName, 
+            Object.getOwnPropertyDescriptor(source, propName)
+        );
+    });
+
+    return target;
+}
+
+function TimeoutError(){
+    let superInstance = Error.apply(null, arguments);
+    copyOwnFrom(this, superInstance);
+}
+
+TimeoutError.prototype = Object.create(Error.prototype);
+TimeoutError.prototype.constructor = TimeoutError;
+```
+
+생성자 함수 정의 및 Error 객체를 상속하였다.
+
+```javascript
+let promise = new Promise(() => {
+    throw new TimeoutError('timeout');
+});
+
+promise.catch(error => {
+    console.log(error instanceof TimeoutError); // true
+});
+```
+
+이제 타임아웃 오류와 일반 오류를 구별할수 있으므로 코드를 재작성한다.
+
+```javascript
+function timeoutPromise(promise, ms){
+    let timeout = delayPromise(ms).then(() => {
+        return Promise.reject(new TimeoutError(`Operation timed out after ${ms} ms`));
+    });
+
+    return Promise.race([promise, timeout])
+}
+```
+
+#### 5.5.2 타임아웃과 XHR 취소
+
+XHR 취소는 abort 메서드를 호출한다.
+
+```javascript
+function cancelableXHR(URL){
+    let req = new XMLHttpRequest();
+    let promise = new Promise((resolve, reject) => {
+        req.open('GET', URL, true);
+
+        req.onload = () => {
+            if(req.status === 200){
+                resolve(req.responseText);
+            } else {
+                reject(new Error(req.responseText));
+            }
+        };
+
+        req.onerror = () => {
+            reject(new Error(req.responseText));
+        };
+        
+        req.onabort = () => {
+            reject(new Error('abort this request'));
+        };
+
+        req.send();
+    });
+
+    let abort = () => {
+        // 이전 리퀘스트가 진행 중이라면 중단
+        if(req.readyState !== XMLHttpRequest.UNSENT){
+            req.abort();
+        }
+    };
+
+    return {
+        promise: promise,
+        abort: abort
+    };
+}
+```
+
+이제 취소 기능을 위한 모든 요소 (`TimeoutError`, `cancelableXHR`)를 구현했다. 흐름은 다음과 같다.
+
+1. `cancelableXHR()`로 프로미스 객체와 `abort()`를 반환받는다.
+
+2. `timeoutPromise()`를 사용해 promise 객체가 타임아웃 되는지 `Promise.race()`로 판단.
+
+3. XHR 요청이 시간 내 완료된 경우 `then()`에 등록된 콜백함수가 실행된다.
+
+4. 타임아웃된 경우 `catch()`에 등록된 콜백이 실행되고 에러 객체가 전달된다.
+    - 이때 안전성을 위해 `TimeoutError` 객체인지 확인 후 `abort()` 한다.
+
+```javascript
+let object = cancelableXHR('http://httpbin.org/get');
+
+timeoutPromise(object.promise, 1000).then(contents => {
+    console.log('Contents', contents);
+}).catch(error => {
+    if(error instanceof TimeoutError){
+        object.abort();
+        return console.log(error.message);
+    }
+
+    console.log('XHR Error :', error.message);
+})
+```
+
+모듈화된 코드는 좋은 가독성과 실용성, 확장성을 제공한다.
+
+```javascript
+"use strict";
+
+let requestMap = {};
+
+function createXHRPromise(URL){
+    let req = new XMLHttpRequest;
+    let promise = new Promise((resolve, reject) => {
+        req.open('GET', URL, true);
+
+        req.onreadystatechange = () => {
+            if(readyState === XMLHttpRequest.DONE){
+                delete requestMap[URL];
+            }
+        }
+
+        req.onload = () => {
+            if(req.status === 200){
+                resolve(req.responseText);
+            } else {
+                reject(new Error(req.responseText));
+            }
+        };
+
+        req.onerror = () => {
+            reject(new Error(req.responseText));
+        };
+        
+        req.onabort = () => {
+            reject(new Error('abort this request'));
+        };
+
+        req.send();
+    });
+
+    requestMap[URL] = { promise, request: req };
+
+    return promise;
+}
+
+function abortPromise(promise){
+    var request;
+
+    if(typeof promise === 'undefined') return false;
+
+    Object.keys(requestMap).some(URL => {
+        if(requestMap[URL].promise === promise){
+            request = requestMap[URL].request;
+            return true;
+        }
+    });
+
+    if(request != null && request.readyState !== XMLHttpRequest.UNSENT){
+        request.abort();
+    }
+}
+
+module.exports.createXHRPromise = createXHRPromise;
+module.exports.abortPromise = abortPromise
+```
+
+```javascript
+const cancelableXHR = require('./cancelableXHR');
+
+let xhrPromise = cancelableXHR.createXHRPromise('http://httpbin.org/get');
+
+xhrPromise.catch(error => {
+    // abort된 에러
+});
+
+// 프로미스 객체의 request 취소
+cancelableXHR.abortPromise(xhrPromise);
+```
+
+프로미스는 흐름을 제어하는 힘이 뛰어나기 때문에 그 장점을 최대한 살리기 위해서는
+
+하나의 함수를 작은 단위로 나누는 등, 자바스크립트에 널리 알려진 안티패턴이나 구현 규칙을
+
+더욱 의식하며 개발해야한다.
+
+
