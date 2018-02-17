@@ -586,4 +586,96 @@ cancelableXHR.abortPromise(xhrPromise);
 
 더욱 의식하며 개발해야한다.
 
+### 5.6 Promise.prototype.done
 
+프로미스를 구현한 많은 라이브러리에서 `Promise.porotype.done`이 구현돼 있다.
+
+`then()`과 사용법은 같지만 프로미스 객체를 반환하지 않는다.
+
+```javascript
+var donePromise = Promise.resolve();
+
+donePromise.done(() => {
+    JSON.parse('this is not json');  // SyntaxError: JSON.parse
+});
+
+var thenPromise = Promise.resolve();
+
+thenPromise.then(() => {
+    JSON.parse('this is not json');
+}).catch(error => {
+    console.error(error.message) // SyntaxError: JSON.parse
+});
+```
+
+- `done()`은 프로미스를 반환하지 않으므로 체이닝을 할 수 없다. 따라서 마지막 체인에 사용한다.
+
+- `done()`에서 발생한 오류는 프로미스에서 처리돼지 않고 일반적인 방법으로 처리된다.
+
+- 이런 메서드가 생긴 이유는, Promise에서 오류가 발생했을 때 생길 수 있는 문제 때문이다.
+
+- 프로미스의 강력한 예외 처리 메커니즘이 의도하지 않은 오류를 더욱 복잡하게 만드는 경향이 있다.(5.3절 처럼)
+
+```javascript
+function JSONPromise(value){
+    return new Promise(resolve => {
+        resolve(JSON.parse(value));
+    });
+}
+
+var string = 'Not json. Just string';
+
+JSONPromise(string).then(object => {
+    console.log(object);
+}).catch(error => {
+    // JSON.parse 에러 발생
+    console.error(error.message);
+});
+// catch()를 제대로 사용한다면 문제가 없다.
+// 하지만 이를 잊어버리면 어디서 오류가 났는지 알 수 없다.
+
+JSONPromise(string).then(object => {
+    console.log(object);
+});
+
+// 오류가 발생했는지 알 수 없다.
+```
+
+문법 오류일 경우 문제는 심각해진다.
+
+```javascript
+var string = "{}";
+
+JSONPromise(string).then(object => {
+    conosle.log(object);
+});
+```
+
+`console`을 `conosle`로 잘못 표기 했으므로
+`ReferenceError: conosle is not defined`에러가 출력되어야 한다.
+
+이렇게 처리되지 않은 오류를 `unhandled rejection`이라고 한다.
+
+라이브러리, 브라우저에 따라 이 에러가 출력되지 않을 수도 있다.
+
+이럴때 필요한 것이 `done()`이다.
+
+```javascript
+"use strict";
+
+if(typeof Promise.prototype.done === 'undefined'){
+    Promise.prototype.done = (onFulfilled, onRejected) => {
+        this.then(onFulfilled, onRejected).catch(error => {
+            setTimeout(() => {
+                throw error;
+            }, 0);
+        });
+    }
+}
+```
+
+**`done()`은 "여기서 프로미스 체인을 종료하고 에러가 날 경우 일반적 방법으로 처리한다."** 고 말하는 것과 같다.
+
+간단히 구현할 수 있기 때문인지 ES6 사양에 채택되진 않았다.
+
+### 5.7 Promise와 메서드 체인
