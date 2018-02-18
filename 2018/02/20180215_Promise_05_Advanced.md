@@ -658,7 +658,7 @@ JSONPromise(string).then(object => {
 
 라이브러리, 브라우저에 따라 이 에러가 출력되지 않을 수도 있다.
 
-이럴때 필요한 것이 `done()`이다.
+이럴때 필요한 것이 `done()`이다. (의도가 명확한 메서드로써 분명 사용점이 있어보인다.)
 
 ```javascript
 "use strict";
@@ -679,3 +679,361 @@ if(typeof Promise.prototype.done === 'undefined'){
 간단히 구현할 수 있기 때문인지 ES6 사양에 채택되진 않았다.
 
 ### 5.7 Promise와 메서드 체인
+
+#### 5.7.1 File System API 메서드 체인
+
+> 이해를 돕기 위할 뿐 실용적인 예제는 아니다.
+
+```javascript
+"use strict";
+
+const fs = require('fs');
+
+function File(){
+    this.lastValue = null;
+}
+
+// Static method for File.prototype.read
+File.read = function FileRead(filePath){
+    let file = new File();
+    return file.read(filePath);
+};
+
+File.prototype.read = (filePath) => {
+    this.lastValue = fs.readFileSync(filePath, 'utf-8');
+    return this;
+}
+
+File.prototype.transform = (fn) => {
+    this.lastValue = fn.call(this, this.lastValue);
+    return this;
+}
+
+File.prototype.write = (filePath) => {
+    this.lastValue = fs.writeFileSync(filePath, this.lastValue);
+    return this;
+}
+
+doule.exports = File;
+```
+
+위 모듈을 다음처럼 `read()`, `transform()`, `write()` 순으로 체인할 수 있다.
+
+```javascript
+const File = require('./fs-method-chain');
+const inputFilePath = 'input.txt';
+const outputFilePath = 'output.txt';
+
+File.read(inputFilePath)
+    .transform(content => {
+        return '>>' + content;
+    })
+    .write(outputFilePath);
+```
+
+`transform()`은 전달받은 값을 변경하는 메서드로 예제에서는 '>>'를 원문 앞에 추가하고 있다.
+
+```javascript
+// Promise 구현
+
+function File() {
+    this.promise = Promise.resolve();
+}
+
+File.read = (filePath) => {
+    const file = new File();
+    return file.read(filePath);
+};
+
+File.prototype.then = (onFulfilled, onRejected) => {
+    this.promise = this.promise.then(onFulfilled, onRejected);
+    return this;
+};
+
+File.prototype['catch'] = (onRejected) {
+    this.promise = this.promise.catch(onRejected);
+    return this;
+};
+
+File.prototype.read = () => {
+    return this.then(() => {
+        return fs.readFileSync(filePath, 'utf-8');
+    });
+};
+
+File.prototype.transform = (fn) => {
+    return this.then(fn);
+}
+
+File.prototype.write = (filePath) => {
+    return this.then(data => {
+        return fs.writeFileSync(filePath, data);
+    });
+}
+```
+
+프로미스 객체를 래핑. 
+
+```javascript
+const File = require('./fs-promise-chain');
+
+File.read(inputFilePath)
+    .transform(content => {
+        return '>>' + content;
+    })
+    .write(outputFilePath);
+
+// 위는 아래와 흐름이 같다
+
+promise.then(function read(){
+    return fs.readFileSync(filePath, 'utf-8');
+}).then(function transform(content){
+    return '>>' + content;
+}).then(function write(data){
+    return fs.writeFileSync(filePath, data);
+});
+```
+
+두 방법의 차이는
+
+1. 동기적 처리와 비동기(프로미스 자체가 비동기적 처리이므로)
+1. 오류 핸들링. 일반적으로 `try-catch`를 사용하지만 프로미스에서는 `catch()`를 이용한다.
+
+일반적 메서드 체인 방식에서 비동기 처리를 구현하면 오류 핸들링에큰 문제가 되기 때문에
+비동기 처리가 필요한 경우 프로미스를 사용하는 것이 좋다.
+
+Node.js에 익숙한 개발자는 메서드 체인과 비동기 처리를 보면서 `Stream`을 생각 했을 것이다.
+`this.lastValue`처럼 값을 유지할 필요가 없고, 큰 파일을 처리할 때 유용하며,
+프로미스를 사용했을 때 보다 고속으로 처리될 가능성이 높다.
+
+```javascript
+// stream을 이용한 read > transform > write 처리
+readableSream.pipe(transformStream).pipe(writableStream);
+```
+
+즉, 비동기 처리에 항상 프로미스가 최적일 것이라는 가정은 옳지 않다.
+
+#### 5.7.2 Promisification
+
+JS는 동적 메서드 정의가 가능하므로, 런타임 상 기존 코드에 프로미스 메서드를 정의해 사용할 수 있다.
+
+이런 기능을 `promisification`이라 부른다. 인터페이스가 동적으로 결정되는 건 좋지 않지만
+
+때로는 문제해결, 효율성 등의 이유로 사용된다. ES6 스펙은 없지만 여타 라이브러리에 구현돼있다.
+
+```javascript
+const fs = Promise.promisifyAll(require('fs'));
+
+fs.readFileAsync('myfile.js', 'utf-8').then(contents => {
+    console.log(contents);
+}).catch(e => {
+    console.error(e.stack);
+});
+```
+
+Array에 프로미스 메서드를 추가하는 객체를 정의하는 예제이다.
+
+```javascript
+"use strict";
+
+function ArrayAsPromise(array){
+    this.array = array;
+    this.promise = Promise.resolve();
+}
+
+ArrayAsPromise.prototype.then = function(onFulfilled, onRejected){
+    this.promise = this.promise.then(onFulfilled, onRejected);
+    return this;
+}
+ArrayAsPromise.prototype['catch'] = function(onRejected){
+    this.promise = this.promise.catch(onRejected);
+    return this;
+}
+
+Object.getOwnPropertyNames(Array.prototype).forEach(function(methodName){
+    let arrayMethod = null;
+
+    // Don't overwrite
+    if(typeof ArrayAsPromise[methodName] !== 'undefined'){
+        return null;
+    }
+
+    arrayMethod = Array.prototype[methodName];
+
+    if(typeof arrayMethod !== 'function'){
+        return null;
+    }
+
+    ArrayAsPromise.prototype[methodName] = function(){
+        let that = this;
+        let args = arguments;
+
+        this.promise = this.promise.then(function(){
+            that.array = Array.prototype[methodName].apply(that.array, args);
+            return that.array;
+        });
+
+        return this;
+    };
+});
+
+module.exports = ArrayAsPromise;
+module.exports.array = function newArrayAsPromise(array){
+    return new ArrayAsPromise(array);
+}
+```
+
+네이티브 Array와 ArrayAsPromise() 비교
+
+```javascript
+"use strict";
+
+const assert = require('power-assert');
+const ArrayAsPromise = require('./array-promise-chain');
+
+describe('array-promise-chain', () => {
+    function isEven(value){
+        return value%2 === 0;
+    }
+
+    function double(value){
+        return value * 2;
+    }
+
+    beforeEach(function(){
+        this.array = [1,2,3,4];
+    });
+
+    describe('Native array', () => {
+        it('cat method chain', () => {
+            let result = this.array.filter(isEven).map(double);
+            assert.deppEqual(result, [4, 8]);
+        });
+    });
+
+    describe('ArrayAsPromise', () => {
+        it('can promise chain', done => {
+            let array = new ArrayAsPromise(this.array);
+            array.filter(isEven).map(double).then(value => {
+                assert.deepEqual(value, [4, 8]);
+            }).then(done, done);
+        });
+    });
+});
+```
+
+Native Array는 동기적으로, ArrayAsPromise는 비동기적으로 처리된다. 
+
+Node.js의 코어 모듈을 `Promisification`하는 경우 `function(error result){}` 인터페이스를
+
+이용해 자동으로 Promise로 래핑한 객체를 생성한다. 이처럼 통일된 인터페이스로 구현한 API는 조금 더 유용하게
+
+`Promisification`할 수 있다.
+
+### 5.8 Promise를 이용한 순차 처리
+
+```javascript
+let request = {
+    comment: function getComment(){
+        return getURL('http://httpbin.org/get').then(JSON.parse);
+    },
+    people: function getPeople(){
+        return getURL('http://httpbin.org/cookies').then(JSON.parse);
+    }
+}
+
+function main(){
+    function recordValue(results, value){
+        results.push(value);
+        return results;
+    }
+
+    // 처리가 끝났을 때 값을 []에 push
+    let pushValue = recordValue.bind(null, []);
+
+    // promise 객체를 반환하는 함수 배열
+    let tasks = [request.comment, request.people];
+    let promise = Promise.resolve();
+
+    for(let i = 0; i < tasks.length; i++){
+        let task = tasks[i];
+        promise = promise.then(task).then(pushValue);
+    }
+
+    return promise;
+}
+
+main().then(value => {
+    console.log(value);
+}).catch(error => {
+    console.error(error);
+});
+```
+
+먼저 `for`문을 보면, `then()`은 항상 새로운 프로미스 객체를 반환한다.
+
+따라서 `promise = pormise.then(task).then(pushValue)`는 promise 변수에
+
+덮어쓴다기보다 기존 객체에 처리를 추가해나간다고 보면 된다. 하지만 임시 프로미스 객체가 필요하고 매끄럽지 않다.
+
+```javascript
+function main(){
+    function recordValue(results, value){
+        results.push(value);
+        return results;
+    }
+
+    let pushValue = recordValue.bind(null, []);
+    let tasks = [request.comment, request.people];
+
+    return tasks.reduce((promise, task) => {
+        return promise.then(task).then(pushValue);
+    }, Promise.resolve());
+}
+```
+
+`Array.prototype.reduce`는 두 번째 매개 변수에 초기값을 지정할 수 있다.
+
+즉, 최초의 promise로 `Promise.resolve()`를 지정하고, 첫번째 task로 request.comment가 실행된다.
+
+Reduce에서 반환한 객체가 다음 루프에서 promise로 전달된다. 따라서 체인을 이어갈 수 있게 됐다.
+
+이제 `for`문의 임시 promise가 필요 없으므로 `promise = promise.then(task).then(pushValue)`같은 혼란스러운 코드가 없어졌다.
+
+**`reduce`와 `Promise` 조합은 순차적 처리 구현 시 유용하게 사용할 수 있다.**
+
+하지만 처음 코드를 읽을 때 어떤 식으로 동작할지 알기 어렵다. 따라서 promise 객체를 반환하는
+
+함수를 배열로 전달받아 처리하는 `sequenceTasks()`를 작성한다.
+
+```javascript
+let pushValue = null;
+
+function sequenceTasks(tasks){
+    function recordValue(results, value){
+        results.push(value);
+        return results;
+    }
+
+    pushValue = recordValue.bind(null, []);
+
+    return tasks.reduce((promise, task) => {
+        return promise.then(task).then(pushValue);
+    }, Promise.resolve());
+}
+
+sequenceTasks([request.comment, request.people])
+```
+
+### 5.9 정리
+
+- `Promise`를 사용하더라도 목적별로 함수를 나눠야 한다.
+    + 대게 프로미스를 사용하더라도 체인을 과도하게 연결하여 작성하는 경향이 있다. 
+    + 이때 전체적인 로직을 알아보기 쉽게 함수를 나누는 것이 좋다.
+    + `Promise`생성자 함수나 `then()`은 고차함수이므로 목적별로 나눈 함수를 조합하기 쉽다.
+
+- `Promise`는 비동기 처리의 해답이 될 수 없다.
+    + 예를 들어 여러번 콜백을 호출하는 `Event`같은 경우 오히려 부적합 하다.
+    + 어떤 비동기든 `Promise`로 해결하기 보다 현재 상황에 `Promise`가 맞는지 먼저 생각해야 한다.
+
+---
