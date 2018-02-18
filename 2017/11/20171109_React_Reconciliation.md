@@ -1,7 +1,6 @@
 # React : Reconciliation
 > **Diffing Algorithm**
-
-> _원문 : [React Docs](https://reactjs.org/docs/design-principles.html)_
+> _원문 : [React Docs](https://reactjs.org/docs/reconciliation.html)_
 
 ## 동기(Motivation)
 
